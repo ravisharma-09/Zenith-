@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith - Focus Room</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="session-body">
+
+    <!-- Background -->
+    <div class="session-bg"></div>
+    <div class="session-bg-overlay"></div>
+
+    <!-- Tab Switch Warning Overlay -->
+    <div class="tab-warning-overlay" id="tabWarning">
+        <div class="tab-warning-content">
+            <div class="tab-warning-icon">⚠️</div>
+            <h2>Session Paused</h2>
+            <p>You switched tabs. Timer has been paused.</p>
+            <p class="tab-warning-sub">Return to this tab to resume your focus session.</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="session-header">
+        <div class="session-info">
+            <div class="session-goal">
+                <span class="goal-label">Goal</span>
+                <span class="goal-text" id="sessionGoal">Deep Focus Study Session</span>
+            </div>
+            <div class="session-meta">
+                <span class="meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span id="sessionName">You</span>
+                </span>
+                <span class="meta-item">
+                    <span class="meta-icon">🎯</span>
+                    <span id="sessionType">Study</span>
+                </span>
+                <span class="meta-item" id="roomCodeWrap" style="display:none;">
+                    <span class="meta-icon">🔗</span>
+                    <span id="roomCodeDisplay"></span>
+                </span>
+            </div>
+            <div id="shareHint" style="display:none; margin-top:6px; font-size:0.8rem; color:var(--primary-light);">
+                Share this Room ID with friends to focus together in real time
+            </div>
+        </div>
+        <div class="session-timer-section">
+            <div class="timer-container">
+                <div class="timer-ring">
+                    <svg class="timer-svg" viewBox="0 0 120 120">
+                        <circle class="timer-track" cx="60" cy="60" r="54"/>
+                        <circle class="timer-progress" id="timerProgress" cx="60" cy="60" r="54"/>
+                    </svg>
+                    <div class="timer-display">
+                        <div class="timer-main" id="timerMain">60:00</div>
+                        <div class="timer-label">remaining</div>
+                    </div>
+                </div>
+            </div>
+            <div class="timer-controls">
+                <button class="timer-btn" id="pauseBtn" onclick="togglePause()">
+                    <span id="pauseIcon">⏸</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Video Section -->
+    <div class="video-section" id="videoSection">
+        <div class="video-header">
+            <h3 class="section-heading">
+                <span class="heading-icon">📹</span>
+                Focus Cam
+            </h3>
+            <button class="video-toggle-btn" id="videoToggle" onclick="toggleVideo()">
+                <span id="videoToggleText">Turn On Camera</span>
+            </button>
+        </div>
+        <div class="video-grid" id="videoGrid">
+            <!-- Self video -->
+            <div class="video-card self-video" id="selfVideoCard">
+                <video class="video-element" id="selfVideo" autoplay muted playsinline></video>
+                <div class="video-overlay">
+                    <span class="video-name" id="selfVideoName">You</span>
+                    <span class="video-status" id="selfVideoStatus">Camera Off</span>
+                </div>
+                <div class="video-placeholder" id="selfPlaceholder">
+                    <div class="video-placeholder-avatar" id="selfPlaceholderAvatar">Y</div>
+                    <p>Camera is off</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <main class="session-main">
+        <div class="participants-section">
+            <h3 class="section-heading">
+                <span class="heading-icon">👥</span>
+                Focus Partners
+                <span class="participant-count" id="participantCount">1/10</span>
+            </h3>
+            <div class="participants-grid" id="participantsGrid"></div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-dot" style="background: var(--primary)"></span>
+                <span class="stat-text" id="sessionStatus">Session Active</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot" style="background: var(--gold)"></span>
+                <span class="stat-text" id="elapsedTime">Elapsed: 0:00</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-dot" style="background: var(--exp-green)"></span>
+                <span class="stat-text" id="liveXP">+0 XP</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Leave Button -->
+    <button class="leave-btn" onclick="leaveSession()">
+        <span class="leave-icon">🚪</span>
+        <span>Leave</span>
+    </button>
+
+    <!-- Leave Modal -->
+    <div class="modal-overlay" id="leaveModal">
+        <div class="modal modal-small">
+            <div class="modal-header">
+                <span class="modal-icon">⚠️</span>
+                <h2>Leave Session?</h2>
+                <p>Your progress will be saved</p>
+            </div>
+            <div class="leave-options">
+                <button class="submit-btn leave-confirm" onclick="confirmLeave()">Leave Session</button>
+                <button class="submit-btn" onclick="closeLeaveModal()">Stay Focused</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== SESSION SETUP =====
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomCode = urlParams.get('room');
+        const myName = urlParams.get('name') || 'You';
+        const sessionGoalText = urlParams.get('goal') || 'Deep Focus Session';
+        const sessionTypeText = urlParams.get('type') || 'Study';
+        const duration = parseInt(urlParams.get('duration')) || 60;
+
+        document.getElementById('sessionName').textContent = myName;
+        document.getElementById('sessionGoal').textContent = sessionGoalText;
+        document.getElementById('sessionType').textContent = sessionTypeText;
+        document.getElementById('selfVideoName').textContent = myName + ' (You)';
+        document.getElementById('selfPlaceholderAvatar').textContent = myName.charAt(0).toUpperCase();
+
+        if (roomCode) {
+            document.getElementById('roomCodeWrap').style.display = 'flex';
+            document.getElementById('roomCodeDisplay').textContent = roomCode;
+            document.getElementById('shareHint').style.display = 'block';
+        }
+
+        // Timer state
+        let totalSeconds = duration * 60;
+        let remainingSeconds = totalSeconds;
+        let isPaused = false;
+        let isTabHidden = false;
+        let timerInterval;
+        let elapsedMs = 0;
+        let lastTick = Date.now();
+
+        // Video state
+        let videoStream = null;
+        let isVideoOn = false;
+
+        // WebRTC peers: { peerId: RTCPeerConnection }
+        let peers = {};
+        // Remote video elements: { peerId: videoElement }
+        let remoteVideos = {};
+
+        // Participants
+        let participants = [];
+        let myId = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        let channel = null;
+        let syncInterval = null;
+
+        // ===== TAB VISIBILITY PAUSE =====
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                isTabHidden = true;
+                if (!isPaused) pauseForTabSwitch();
+                document.getElementById('tabWarning').classList.add('active');
+            } else {
+                isTabHidden = false;
+                document.getElementById('tabWarning').classList.remove('active');
+                if (isPaused && !document.getElementById('pauseBtn').classList.contains('manual-pause')) {
+                    resumeFromTabSwitch();
+                }
+            }
+        });
+
+        function pauseForTabSwitch() {
+            isPaused = true;
+            lastTick = Date.now();
+            document.getElementById('pauseIcon').textContent = '▶️';
+            document.getElementById('pauseBtn').classList.add('paused');
+            document.getElementById('sessionStatus').textContent = 'Paused — Tab Switched';
+        }
+
+        function resumeFromTabSwitch() {
+            isPaused = false;
+            lastTick = Date.now();
+            document.getElementById('pauseIcon').textContent = '⏸';
+            document.getElementById('pauseBtn').classList.remove('paused');
+            document.getElementById('sessionStatus').textContent = 'Session Active';
+        }
+
+        // ===== WEBRTC PEER CONNECTION =====
+        function createPeerConnection(peerId) {
+            const pc = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+
+            // Add local stream tracks
+            if (videoStream) {
+                videoStream.getTracks().forEach(function(track) {
+                    pc.addTrack(track, videoStream);
+                });
+            }
+
+            // Handle remote stream
+            pc.ontrack = function(event) {
+                const stream = event.streams[0];
+                if (!remoteVideos[peerId]) {
+                    createRemoteVideo(peerId, stream);
+                } else {
+                    remoteVideos[peerId].srcObject = stream;
+                }
+            };
+
+            // Handle ICE candidates
+            pc.onicecandidate = function(event) {
+                if (event.candidate) {
+                    sendSignal({
+                        type: 'ice-candidate',
+                        target: peerId,
+                        sender: myId,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            pc.onconnectionstatechange = function() {
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                    removeRemoteVideo(peerId);
+                    if (peers[peerId]) {
+                        peers[peerId].close();
+                        delete peers[peerId];
+                    }
+                }
+            };
+
+            return pc;
+        }
+
+        function createRemoteVideo(peerId, stream) {
+            const grid = document.getElementById('videoGrid');
+            const card = document.createElement('div');
+            card.className = 'video-card remote-video';
+            card.id = 'video-' + peerId;
+            card.innerHTML =
+                '<video class="video-element" autoplay playsinline style="display:block;"></video>' +
+                '<div class="video-overlay">' +
+                    '<span class="video-name">Peer</span>' +
+                    '<span class="video-status" style="color:#8ab8a0;">Live</span>' +
+                '</div>';
+            grid.appendChild(card);
+
+            const video = card.querySelector('video');
+            video.srcObject = stream;
+            remoteVideos[peerId] = video;
+
+            // Update name from participants list
+            const p = participants.find(function(x) { return x.id === peerId; });
+            if (p) {
+                card.querySelector('.video-name').textContent = p.name;
+            }
+        }
+
+        function removeRemoteVideo(peerId) {
+            const card = document.getElementById('video-' + peerId);
+            if (card) {
+                const video = card.querySelector('video');
+                if (video && video.srcObject) {
+                    video.srcObject.getTracks().forEach(function(t) { t.stop(); });
+                }
+                card.remove();
+            }
+            delete remoteVideos[peerId];
+        }
+
+        // ===== SIGNALING (BroadcastChannel + localStorage) =====
+        function sendSignal(data) {
+            data.room = roomCode;
+            data.timestamp = Date.now();
+            const payload = JSON.stringify(data);
+            if (channel) channel.postMessage(payload);
+            try {
+                localStorage.setItem('zenith_signal_' + roomCode + '_' + Date.now(), payload);
+            } catch(e) {}
+        }
+
+        function handleSignal(data) {
+            if (!data || data.sender === myId || data.room !== roomCode) return;
+
+            if (data.type === 'join') {
+                // New peer joined — if I have camera on, initiate connection
+                if (isVideoOn && !peers[data.sender]) {
+                    initiateConnection(data.sender);
+                }
+            } else if (data.type === 'offer') {
+                handleOffer(data.sender, data.offer);
+            } else if (data.type === 'answer') {
+                handleAnswer(data.sender, data.answer);
+            } else if (data.type === 'ice-candidate') {
+                handleIceCandidate(data.sender, data.candidate);
+            } else if (data.type === 'leave') {
+                if (peers[data.sender]) {
+                    peers[data.sender].close();
+                    delete peers[data.sender];
+                }
+                removeRemoteVideo(data.sender);
+            }
+        }
+
+        async function initiateConnection(peerId) {
+            const pc = createPeerConnection(peerId);
+            peers[peerId] = pc;
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            sendSignal({
+                type: 'offer',
+                target: peerId,
+                sender: myId,
+                offer: offer
+            });
+        }
+
+        async function handleOffer(peerId, offer) {
+            const pc = createPeerConnection(peerId);
+            peers[peerId] = pc;
+
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            sendSignal({
+                type: 'answer',
+                target: peerId,
+                sender: myId,
+                answer: answer
+            });
+        }
+
+        async function handleAnswer(peerId, answer) {
+            const pc = peers[peerId];
+            if (pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        }
+
+        async function handleIceCandidate(peerId, candidate) {
+            const pc = peers[peerId];
+            if (pc) {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        }
+
+        // ===== VIDEO CAMERA =====
+        async function toggleVideo() {
+            const video = document.getElementById('selfVideo');
+            const placeholder = document.getElementById('selfPlaceholder');
+            const status = document.getElementById('selfVideoStatus');
+            const btn = document.getElementById('videoToggle');
+            const btnText = document.getElementById('videoToggleText');
+
+            if (!isVideoOn) {
+                try {
+                    videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480, facingMode: 'user' },
+                        audio: false
+                    });
+                    video.srcObject = videoStream;
+                    video.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    status.textContent = 'Live';
+                    status.style.color = '#8ab8a0';
+                    btnText.textContent = 'Turn Off Camera';
+                    btn.classList.add('active');
+                    isVideoOn = true;
+
+                    // Notify all existing peers and initiate connections
+                    sendSignal({ type: 'join', sender: myId, name: myName });
+                    Object.keys(peers).forEach(function(peerId) {
+                        videoStream.getTracks().forEach(function(track) {
+                            peers[peerId].addTrack(track, videoStream);
+                        });
+                    });
+
+                } catch (err) {
+                    alert('Could not access camera. Please allow camera permissions.');
+                    console.error('Camera error:', err);
+                }
+            } else {
+                if (videoStream) {
+                    videoStream.getTracks().forEach(function(track) { track.stop(); });
+                    videoStream = null;
+                }
+                video.srcObject = null;
+                video.style.display = 'none';
+                placeholder.style.display = 'flex';
+                status.textContent = 'Camera Off';
+                status.style.color = 'var(--text-muted)';
+                btnText.textContent = 'Turn On Camera';
+                btn.classList.remove('active');
+                isVideoOn = false;
+
+                // Remove tracks from all peer connections
+                Object.keys(peers).forEach(function(peerId) {
+                    const pc = peers[peerId];
+                    pc.getSenders().forEach(function(sender) {
+                        if (sender.track) {
+                            pc.removeTrack(sender);
+                        }
+                    });
+                });
+            }
+        }
+
+        // Stop video on page leave
+        window.addEventListener('beforeunload', function() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(function(track) { track.stop(); });
+            }
+        });
+
+        // ===== REAL-TIME SYNC (participants + signaling) =====
+        function initRoom() {
+            participants = [{
+                id: myId,
+                name: myName,
+                status: 'you',
+                avatar: myName.charAt(0).toUpperCase(),
+                lastSeen: Date.now()
+            }];
+
+            if (roomCode) {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    channel = new BroadcastChannel('zenith_room_' + roomCode);
+                    channel.onmessage = function(e) {
+                        try {
+                            const data = JSON.parse(e.data);
+                            handleSignal(data);
+                        } catch(err) {
+                            // Might be plain object from older code
+                            handleSyncData(e.data);
+                        }
+                    };
+                    channel.postMessage({
+                        type: 'join',
+                        id: myId,
+                        name: myName,
+                        timestamp: Date.now()
+                    });
+                }
+
+                window.addEventListener('storage', function(e) {
+                    if (e.key && e.key.startsWith('zenith_signal_' + roomCode)) {
+                        try {
+                            const data = JSON.parse(e.newValue);
+                            if (data && data.sender !== myId) {
+                                handleSignal(data);
+                            }
+                        } catch(err) {}
+                    } else if (e.key === 'zenith_room_' + roomCode) {
+                        try {
+                            const data = JSON.parse(e.newValue);
+                            if (data && data.id !== myId) {
+                                handleSyncData(data);
+                            }
+                        } catch(err) {}
+                    }
+                });
+
+                loadParticipantsFromStorage();
+
+                syncInterval = setInterval(function() {
+                    const data = {
+                        type: 'heartbeat',
+                        id: myId,
+                        name: myName,
+                        timestamp: Date.now()
+                    };
+                    if (channel) channel.postMessage(data);
+                    try {
+                        localStorage.setItem('zenith_room_' + roomCode, JSON.stringify(data));
+                    } catch(e) {}
+                    cleanupOldParticipants();
+                }, 2000);
+            }
+
+            renderParticipants();
+        }
+
+        function handleSyncData(data) {
+            if (!data || data.id === myId) return;
+
+            const existing = participants.find(function(p) { return p.id === data.id; });
+            if (existing) {
+                existing.lastSeen = Date.now();
+                if (data.name) existing.name = data.name;
+            } else {
+                participants.push({
+                    id: data.id,
+                    name: data.name || 'User',
+                    status: 'focused',
+                    avatar: (data.name || 'U').charAt(0).toUpperCase(),
+                    lastSeen: Date.now()
+                });
+                renderParticipants();
+
+                // If I have camera on, initiate WebRTC with new peer
+                if (isVideoOn && !peers[data.id]) {
+                    initiateConnection(data.id);
+                }
+            }
+
+            // Update remote video name if exists
+            const videoCard = document.getElementById('video-' + data.id);
+            if (videoCard) {
+                videoCard.querySelector('.video-name').textContent = data.name || 'Peer';
+            }
+        }
+
+        function loadParticipantsFromStorage() {
+            if (!roomCode) return;
+            try {
+                const roomState = JSON.parse(localStorage.getItem('zenith_room_state_' + roomCode) || '{}');
+                const now = Date.now();
+                Object.keys(roomState).forEach(function(id) {
+                    if (id === myId) return;
+                    const p = roomState[id];
+                    if (now - p.lastSeen < 10000) {
+                        handleSyncData({ id: id, name: p.name, type: 'join', timestamp: p.lastSeen });
+                    }
+                });
+            } catch(e) {}
+        }
+
+        function cleanupOldParticipants() {
+            const now = Date.now();
+            const before = participants.length;
+            const removed = [];
+            participants = participants.filter(function(p) {
+                const keep = p.id === myId || (now - p.lastSeen < 8000);
+                if (!keep) removed.push(p.id);
+                return keep;
+            });
+            removed.forEach(function(id) {
+                if (peers[id]) {
+                    peers[id].close();
+                    delete peers[id];
+                }
+                removeRemoteVideo(id);
+            });
+            if (participants.length !== before) {
+                renderParticipants();
+            }
+        }
+
+        // ===== PARTICIPANT RENDERING =====
+        function renderParticipants() {
+            const grid = document.getElementById('participantsGrid');
+            const maxSlots = 10;
+            let html = '';
+
+            participants.forEach(function(p, i) {
+                html += '<div class="participant-card ' + p.status + '" style="animation-delay: ' + (i * 0.08) + 's">' +
+                    '<div class="participant-avatar">' +
+                        '<span>' + p.avatar + '</span>' +
+                        '<div class="status-indicator ' + p.status + '"></div>' +
+                    '</div>' +
+                    '<div class="participant-name">' + p.name + '</div>' +
+                    '<div class="participant-status">' + (p.status === 'you' ? 'You' : 'Focused') + '</div>' +
+                '</div>';
+            });
+
+            const empty = maxSlots - participants.length;
+            for (let i = 0; i < empty; i++) {
+                html += '<div class="participant-card waiting" style="animation-delay: ' + ((participants.length + i) * 0.08) + 's">' +
+                    '<div class="participant-avatar" style="background:rgba(124,154,142,0.08); box-shadow:none;">' +
+                        '<span style="color:var(--text-muted); font-size:1.4rem;">+</span>' +
+                    '</div>' +
+                    '<div class="participant-name" style="color:var(--text-muted);">Waiting</div>' +
+                    '<div class="participant-status" style="color:var(--text-light);">Available</div>' +
+                '</div>';
+            }
+
+            grid.innerHTML = html;
+            document.getElementById('participantCount').textContent = participants.length + '/' + maxSlots;
+        }
+
+        // ===== TIMER =====
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function formatDuration(ms) {
+            const ts = Math.floor(ms / 1000);
+            const m = Math.floor(ts / 60);
+            const s = ts % 60;
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function updateTimer() {
+            const now = Date.now();
+            if (!isPaused) {
+                remainingSeconds = Math.max(0, remainingSeconds - Math.floor((now - lastTick) / 1000));
+                elapsedMs += (now - lastTick);
+            }
+            lastTick = now;
+
+            document.getElementById('timerMain').textContent = formatTime(remainingSeconds);
+            document.getElementById('elapsedTime').textContent = 'Elapsed: ' + formatDuration(elapsedMs);
+
+            const xp = Math.floor(elapsedMs / 30000) * 2;
+            document.getElementById('liveXP').textContent = '+' + xp + ' XP';
+
+            const progress = remainingSeconds / totalSeconds;
+            const c = 2 * Math.PI * 54;
+            const offset = c * (1 - progress);
+            const tp = document.getElementById('timerProgress');
+            tp.style.strokeDashoffset = offset;
+
+            if (progress < 0.15) tp.style.stroke = '#c98b7b';
+            else if (progress < 0.4) tp.style.stroke = '#c4a882';
+            else tp.style.stroke = '#7c9a8e';
+
+            if (remainingSeconds <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('timerMain').textContent = 'Done!';
+                document.getElementById('timerMain').style.fontSize = '1.6rem';
+                document.getElementById('sessionStatus').textContent = 'Session Complete';
+                celebrateCompletion();
+                saveSessionStats();
+            }
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('pauseIcon').textContent = isPaused ? '▶️' : '⏸';
+            document.getElementById('pauseBtn').classList.toggle('paused', isPaused);
+            document.getElementById('pauseBtn').classList.toggle('manual-pause', isPaused);
+            document.getElementById('sessionStatus').textContent = isPaused ? 'Paused' : 'Session Active';
+            lastTick = Date.now();
+        }
+
+        // ===== STATS PERSISTENCE =====
+        function saveSessionStats() {
+            const elapsedSec = Math.floor(elapsedMs / 1000);
+            if (elapsedSec < 30) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const user = JSON.parse(localStorage.getItem('zenith_user') || '{}');
+
+            user.name = myName;
+            user.totalTime = (user.totalTime || 0) + elapsedSec;
+            user.sessions = (user.sessions || 0) + 1;
+            user.xp = (user.xp || 0) + Math.floor(elapsedSec / 30) * 2;
+
+            if (user.lastSessionDate) {
+                const last = new Date(user.lastSessionDate);
+                const now = new Date(today);
+                const diff = Math.floor((now - last) / 86400000);
+                if (diff === 1) user.streak = (user.streak || 0) + 1;
+                else if (diff > 1) user.streak = 1;
+            } else {
+                user.streak = 1;
+            }
+            user.lastSessionDate = today;
+
+            localStorage.setItem('zenith_user', JSON.stringify(user));
+
+            let lb = JSON.parse(localStorage.getItem('zenith_leaderboard') || '[]');
+            const ex = lb.find(function(e) { return e.name === myName; });
+            if (ex) { ex.xp = user.xp; ex.time = user.totalTime; }
+            else lb.push({ name: myName, xp: user.xp, time: user.totalTime });
+            lb.sort(function(a, b) { return b.xp - a.xp; });
+            localStorage.setItem('zenith_leaderboard', JSON.stringify(lb.slice(0, 20)));
+        }
+
+        // ===== LEAVE =====
+        function leaveSession() {
+            document.getElementById('leaveModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLeaveModal() {
+            document.getElementById('leaveModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function confirmLeave() {
+            if (channel) {
+                channel.postMessage(JSON.stringify({ type: 'leave', sender: myId, room: roomCode }));
+                channel.close();
+            }
+            if (videoStream) {
+                videoStream.getTracks().forEach(function(track) { track.stop(); });
+            }
+            Object.keys(peers).forEach(function(peerId) {
+                peers[peerId].close();
+            });
+            clearInterval(timerInterval);
+            clearInterval(syncInterval);
+            saveSessionStats();
+            window.location.href = 'rooms.html';
+        }
+
+        function celebrateCompletion() {
+            document.querySelectorAll('.participant-card').forEach(function(card, i) {
+                setTimeout(function() { card.style.animation = 'celebrate 0.6s ease'; }, i * 100);
+            });
+        }
+
+        document.getElementById('leaveModal').addEventListener('click', function(e) {
+            if (e.target === this) closeLeaveModal();
+        });
+
+        // ===== INIT =====
+        const circumference = 2 * Math.PI * 54;
+        document.getElementById('timerProgress').style.strokeDasharray = circumference;
+        document.getElementById('timerProgress').style.strokeDashoffset = 0;
+
+        initRoom();
+        lastTick = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+    </script>
+
+</body>
+</html>

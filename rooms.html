@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith - Rooms</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">◈</span>
+            <span class="brand-text">Zenith</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rooms.html" class="active">Rooms</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+        <div class="nav-actions">
+            <button class="exp-btn" onclick="openModal('expModal'); renderExp();">
+                <span class="exp-icon">⚡</span>
+                <span>My Exp</span>
+            </button>
+            <button class="lb-nav-btn" onclick="openModal('leaderboardModal'); renderLeaderboard();">
+                <span class="lb-icon">🏆</span>
+                <span>Leaderboard</span>
+            </button>
+            <button class="login-btn" onclick="openModal('loginModal')">Login</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="rooms-page">
+        <div class="rooms-container">
+
+            <h1 class="rooms-title">Join Your Room</h1>
+            <p class="rooms-subtitle">Choose your focus space and start your session</p>
+
+            <!-- Category Cards -->
+            <div class="category-cards">
+                <div class="category-card" onclick="openFocusRoom('Meditation')">
+                    <div class="cat-icon">🧘</div>
+                    <h4>Meditation</h4>
+                    <p>Practice mindfulness & calm</p>
+                    <span class="cat-tag">Focus</span>
+                </div>
+                <div class="category-card" onclick="openFocusRoom('Study')">
+                    <div class="cat-icon">📚</div>
+                    <h4>Study</h4>
+                    <p>Deep focus for learning</p>
+                    <span class="cat-tag">Focus</span>
+                </div>
+                <div class="category-card" onclick="openJoinModal()">
+                    <div class="cat-icon">🔗</div>
+                    <h4>Join Friend</h4>
+                    <p>Enter a room ID to focus together</p>
+                    <span class="cat-tag">Social</span>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="brand-icon">◈</span>
+                <span>Zenith</span>
+            </div>
+            <div class="footer-links">
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+                <a href="#">Support</a>
+            </div>
+            <p class="footer-copy">©️ 2026 Zenith. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- ========== MODALS ========== -->
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="loginModal" onclick="closeModal(event, 'loginModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'loginModal')">×</button>
+            <div class="modal-header">
+                <span class="modal-icon">◈</span>
+                <h2>Welcome Back</h2>
+                <p>Sign in to your Zenith account</p>
+            </div>
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="you@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <div class="form-options">
+                    <label class="remember">
+                        <input type="checkbox">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot">Forgot password?</a>
+                </div>
+                <button type="submit" class="submit-btn">Sign In</button>
+            </form>
+            <div class="modal-footer">
+                <p>Don't have an account? <a href="#">Create one</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Exp Modal -->
+    <div class="modal-overlay" id="expModal" onclick="closeModal(event, 'expModal')">
+        <div class="modal modal-wide" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'expModal')">×</button>
+            <div class="modal-header">
+                <span class="modal-icon">⚡</span>
+                <h2>My Experience</h2>
+                <p>Your focus journey stats</p>
+            </div>
+            <div class="exp-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="expSessions">0</div>
+                    <div class="stat-label">Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="expTime">0m</div>
+                    <div class="stat-label">Focus Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="expXP">0</div>
+                    <div class="stat-label">XP Points</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="expStreak">0</div>
+                    <div class="stat-label">Day Streak</div>
+                </div>
+            </div>
+            <div class="exp-progress">
+                <h4 id="expLevelTitle">Level 1 — Beginner</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <p id="expProgressText">0 / 500 XP to next level</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="modal-overlay" id="leaderboardModal" onclick="closeModal(event, 'leaderboardModal')">
+        <div class="modal modal-wide" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'leaderboardModal')">×</button>
+            <div class="modal-header">
+                <span class="modal-icon">🏆</span>
+                <h2>Leaderboard</h2>
+                <p>Top focus warriors by real time spent</p>
+            </div>
+            <div class="leaderboard-table" id="leaderboardTable">
+                <div class="lb-row lb-header">
+                    <span class="lb-rank">#</span>
+                    <span class="lb-name">User</span>
+                    <span class="lb-xp">XP</span>
+                    <span class="lb-time">Time</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Focus Room Modal -->
+    <div class="modal-overlay" id="focusRoomModal" onclick="closeModal(event, 'focusRoomModal')">
+        <div class="modal modal-room" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'focusRoomModal')">×</button>
+            <div class="modal-header">
+                <span class="modal-icon">🎯</span>
+                <h2 id="roomModalTitle">Enter Focus Room</h2>
+                <p>Configure your session</p>
+            </div>
+            <form class="room-form" onsubmit="enterSession(event)">
+                <div class="input-group">
+                    <label for="roomName">Name</label>
+                    <input type="text" id="roomName" placeholder="Your display name" required>
+                </div>
+                <div class="input-group">
+                    <label for="roomGoal">Goal</label>
+                    <input type="text" id="roomGoal" placeholder="What do you want to achieve?" required>
+                </div>
+                <div class="input-group">
+                    <label>Duration</label>
+                    <div class="duration-options">
+                        <label class="dur-option">
+                            <input type="radio" name="duration" value="30" checked>
+                            <span>30 min</span>
+                        </label>
+                        <label class="dur-option">
+                            <input type="radio" name="duration" value="60">
+                            <span>60 min</span>
+                        </label>
+                        <label class="dur-option">
+                            <input type="radio" name="duration" value="120">
+                            <span>120 min</span>
+                        </label>
+                        <label class="dur-option">
+                            <input type="radio" name="duration" value="custom">
+                            <span>Custom</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn enter-session-btn">Enter Session</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Join Friend Modal -->
+    <div class="modal-overlay" id="joinModal" onclick="closeModal(event, 'joinModal')">
+        <div class="modal modal-room" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal(null, 'joinModal')">×</button>
+            <div class="modal-header">
+                <span class="modal-icon">🔗</span>
+                <h2>Join a Friend</h2>
+                <p>Enter the room ID to focus together in real time</p>
+            </div>
+            <form class="room-form" onsubmit="joinFriendSession(event)">
+                <div class="input-group">
+                    <label for="joinName">Your Name</label>
+                    <input type="text" id="joinName" placeholder="Your display name" required>
+                </div>
+                <div class="input-group">
+                    <label for="joinCode">Room ID</label>
+                    <input type="text" id="joinCode" placeholder="e.g. ZEN-AB12" required style="text-transform:uppercase;">
+                </div>
+                <button type="submit" class="submit-btn enter-session-btn">Join Room</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentRoomType = '';
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(event, id) {
+            if (!event || event.target === document.getElementById(id) || event.target.classList.contains('modal-close')) {
+                document.getElementById(id).classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function openFocusRoom(roomType) {
+            currentRoomType = roomType;
+            document.getElementById('roomModalTitle').textContent = roomType + ' — Focus Room';
+            openModal('focusRoomModal');
+        }
+
+        function openJoinModal() {
+            openModal('joinModal');
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            alert('Welcome, ' + email + '! Login successful.');
+            closeModal(null, 'loginModal');
+        }
+
+        function enterSession(event) {
+            event.preventDefault();
+            const name = document.getElementById('roomName').value;
+            const goal = document.getElementById('roomGoal').value;
+            const duration = document.querySelector('input[name="duration"]:checked').value;
+            const roomCode = 'ZEN-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+
+            const params = new URLSearchParams({
+                name: name,
+                goal: goal,
+                type: currentRoomType,
+                duration: duration,
+                room: roomCode
+            });
+            window.location.href = 'session.html?' + params.toString();
+        }
+
+        function joinFriendSession(event) {
+            event.preventDefault();
+            const name = document.getElementById('joinName').value;
+            const code = document.getElementById('joinCode').value.toUpperCase();
+            const params = new URLSearchParams({
+                name: name,
+                goal: 'Group Focus Session',
+                type: 'Friend',
+                duration: 60,
+                room: code
+            });
+            window.location.href = 'session.html?' + params.toString();
+        }
+
+        // ===== REAL-TIME EXP RENDERING =====
+        function renderExp() {
+            const user = JSON.parse(localStorage.getItem('zenith_user') || '{}');
+            const totalSec = user.totalTime || 0;
+            const hours = Math.floor(totalSec / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+            document.getElementById('expSessions').textContent = user.sessions || 0;
+            document.getElementById('expTime').textContent = timeStr;
+            document.getElementById('expXP').textContent = (user.xp || 0).toLocaleString();
+            document.getElementById('expStreak').textContent = user.streak || 0;
+
+            const level = Math.floor((user.xp || 0) / 500) + 1;
+            const names = ['Beginner','Focus Novice','Deep Worker','Flow Master','Zenith Warrior','Legend'];
+            const title = names[Math.min(level - 1, names.length - 1)] || 'Master';
+            document.getElementById('expLevelTitle').textContent = `Level ${level} — ${title}`;
+
+            const current = (user.xp || 0) % 500;
+            const pct = (current / 500) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('expProgressText').textContent = `${current} / 500 XP to next level`;
+        }
+
+        // ===== REAL-TIME LEADERBOARD =====
+        function renderLeaderboard() {
+            const container = document.getElementById('leaderboardTable');
+            let html = `
+                <div class="lb-row lb-header">
+                    <span class="lb-rank">#</span>
+                    <span class="lb-name">User</span>
+                    <span class="lb-xp">XP</span>
+                    <span class="lb-time">Time</span>
+                </div>
+            `;
+
+            const lb = JSON.parse(localStorage.getItem('zenith_leaderboard') || '[]');
+            if (lb.length === 0) {
+                html += `<div class="lb-row"><span style="color:var(--text-muted); text-align:center; grid-column:1/-1; padding:20px;">No sessions yet. Start focusing to appear here!</span></div>`;
+            } else {
+                lb.slice(0, 10).forEach((entry, i) => {
+                    const rank = i + 1;
+                    let cls = '', disp = rank;
+                    if (rank === 1) { cls = 'lb-gold'; disp = '🥇'; }
+                    else if (rank === 2) { cls = 'lb-silver'; disp = '🥈'; }
+                    else if (rank === 3) { cls = 'lb-bronze'; disp = '🥉'; }
+
+                    const h = Math.floor(entry.time / 3600);
+                    const m = Math.floor((entry.time % 3600) / 60);
+                    const t = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+                    html += `
+                        <div class="lb-row ${cls}">
+                            <span class="lb-rank">${disp}</span>
+                            <span class="lb-name">${entry.name}</span>
+                            <span class="lb-xp">${entry.xp.toLocaleString()}</span>
+                            <span class="lb-time">${t}</span>
+                        </div>
+                    `;
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => {
+                    m.classList.remove('active');
+                });
+                document.body.style.overflow = '';
+            }
+        });
+    </script>
+
+</body>
+</html>
