@@ -6,6 +6,7 @@
     <title>Zenith - Focus Room</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="session-body">
 
@@ -178,6 +179,14 @@
         let videoStream = null;
         let isVideoOn = false;
 
+        // ===== SUPABASE CONFIG =====
+        // 1. Go to supabase.com → New Project
+        // 2. Project Settings → API
+        // 3. Copy "Project URL" and "anon public" key here
+        const SUPABASE_URL = 'https://tseagsdutcihhisxyuur.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_qq98Hby7TwYNHxvUc8O3hA_Tybhi6OX';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // WebRTC peers: { peerId: RTCPeerConnection }
         let peers = {};
         // Remote video elements: { peerId: videoElement }
@@ -186,7 +195,7 @@
         // Participants
         let participants = [];
         let myId = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-        let channel = null;
+        let supabaseChannel = null;
         let syncInterval = null;
 
         // ===== TAB VISIBILITY PAUSE =====
@@ -307,30 +316,31 @@
             delete remoteVideos[peerId];
         }
 
-        // ===== SIGNALING (BroadcastChannel + localStorage) =====
+        // ===== SIGNALING (Supabase Realtime Broadcast) =====
         function sendSignal(data) {
             data.room = roomCode;
             data.timestamp = Date.now();
-            const payload = JSON.stringify(data);
-            if (channel) channel.postMessage(payload);
-            try {
-                localStorage.setItem('zenith_signal_' + roomCode + '_' + Date.now(), payload);
-            } catch(e) {}
+            if (supabaseChannel) {
+                supabaseChannel.send({ type: 'broadcast', event: 'signal', payload: data });
+            }
         }
 
         function handleSignal(data) {
             if (!data || data.sender === myId || data.room !== roomCode) return;
 
             if (data.type === 'join') {
-                // New peer joined — if I have camera on, initiate connection
+                // New peer announced camera — initiate WebRTC connection
                 if (isVideoOn && !peers[data.sender]) {
                     initiateConnection(data.sender);
                 }
             } else if (data.type === 'offer') {
+                if (data.target !== myId) return;
                 handleOffer(data.sender, data.offer);
             } else if (data.type === 'answer') {
+                if (data.target !== myId) return;
                 handleAnswer(data.sender, data.answer);
             } else if (data.type === 'ice-candidate') {
+                if (data.target !== myId) return;
                 handleIceCandidate(data.sender, data.candidate);
             } else if (data.type === 'leave') {
                 if (peers[data.sender]) {
@@ -454,7 +464,7 @@
             }
         });
 
-        // ===== REAL-TIME SYNC (participants + signaling) =====
+        // ===== REAL-TIME SYNC (participants + signaling via Supabase) =====
         function initRoom() {
             participants = [{
                 id: myId,
@@ -465,56 +475,36 @@
             }];
 
             if (roomCode) {
-                if (typeof BroadcastChannel !== 'undefined') {
-                    channel = new BroadcastChannel('zenith_room_' + roomCode);
-                    channel.onmessage = function(e) {
-                        try {
-                            const data = JSON.parse(e.data);
-                            handleSignal(data);
-                        } catch(err) {
-                            // Might be plain object from older code
-                            handleSyncData(e.data);
-                        }
-                    };
-                    channel.postMessage({
-                        type: 'join',
-                        id: myId,
-                        name: myName,
-                        timestamp: Date.now()
-                    });
-                }
-
-                window.addEventListener('storage', function(e) {
-                    if (e.key && e.key.startsWith('zenith_signal_' + roomCode)) {
-                        try {
-                            const data = JSON.parse(e.newValue);
-                            if (data && data.sender !== myId) {
-                                handleSignal(data);
-                            }
-                        } catch(err) {}
-                    } else if (e.key === 'zenith_room_' + roomCode) {
-                        try {
-                            const data = JSON.parse(e.newValue);
-                            if (data && data.id !== myId) {
-                                handleSyncData(data);
-                            }
-                        } catch(err) {}
-                    }
+                supabaseChannel = supabaseClient.channel('zenith_room_' + roomCode, {
+                    config: { broadcast: { self: false } }
                 });
 
-                loadParticipantsFromStorage();
+                supabaseChannel
+                    .on('broadcast', { event: 'signal' }, function({ payload }) {
+                        handleSignal(payload);
+                    })
+                    .on('broadcast', { event: 'heartbeat' }, function({ payload }) {
+                        handleSyncData(payload);
+                    })
+                    .subscribe(function(status) {
+                        if (status === 'SUBSCRIBED') {
+                            // Announce presence to everyone already in the room
+                            supabaseChannel.send({
+                                type: 'broadcast',
+                                event: 'heartbeat',
+                                payload: { type: 'join', id: myId, name: myName, timestamp: Date.now() }
+                            });
+                        }
+                    });
 
                 syncInterval = setInterval(function() {
-                    const data = {
-                        type: 'heartbeat',
-                        id: myId,
-                        name: myName,
-                        timestamp: Date.now()
-                    };
-                    if (channel) channel.postMessage(data);
-                    try {
-                        localStorage.setItem('zenith_room_' + roomCode, JSON.stringify(data));
-                    } catch(e) {}
+                    if (supabaseChannel) {
+                        supabaseChannel.send({
+                            type: 'broadcast',
+                            event: 'heartbeat',
+                            payload: { type: 'heartbeat', id: myId, name: myName, timestamp: Date.now() }
+                        });
+                    }
                     cleanupOldParticipants();
                 }, 2000);
             }
@@ -723,9 +713,13 @@
         }
 
         function confirmLeave() {
-            if (channel) {
-                channel.postMessage(JSON.stringify({ type: 'leave', sender: myId, room: roomCode }));
-                channel.close();
+            if (supabaseChannel) {
+                supabaseChannel.send({
+                    type: 'broadcast',
+                    event: 'signal',
+                    payload: { type: 'leave', sender: myId, room: roomCode }
+                });
+                supabaseClient.removeChannel(supabaseChannel);
             }
             if (videoStream) {
                 videoStream.getTracks().forEach(function(track) { track.stop(); });
