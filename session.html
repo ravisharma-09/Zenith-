@@ -506,6 +506,7 @@
                         });
                     }
                     cleanupOldParticipants();
+                    renderParticipants();
                 }, 2000);
             }
 
@@ -519,6 +520,7 @@
             if (existing) {
                 existing.lastSeen = Date.now();
                 if (data.name) existing.name = data.name;
+                renderParticipants();
             } else {
                 participants.push({
                     id: data.id,
