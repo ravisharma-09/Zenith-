@@ -213,6 +213,23 @@
                         </label>
                     </div>
                 </div>
+                <div class="input-group">
+                    <label>Camera Mode</label>
+                    <div class="camera-mode-options">
+                        <label class="cam-option cam-option-on">
+                            <input type="radio" name="cameraMode" value="on" checked>
+                            <span class="cam-icon">📹</span>
+                            <span class="cam-label">With Camera</span>
+                            <span class="cam-desc">Focus Cam enabled — required</span>
+                        </label>
+                        <label class="cam-option cam-option-off">
+                            <input type="radio" name="cameraMode" value="off">
+                            <span class="cam-icon">🚫</span>
+                            <span class="cam-label">No Camera</span>
+                            <span class="cam-desc">Audio-only, no video feed</span>
+                        </label>
+                    </div>
+                </div>
                 <button type="submit" class="submit-btn enter-session-btn">Enter Session</button>
             </form>
         </div>
@@ -278,6 +295,7 @@
             const name = document.getElementById('roomName').value;
             const goal = document.getElementById('roomGoal').value;
             const duration = document.querySelector('input[name="duration"]:checked').value;
+            const cameraMode = document.querySelector('input[name="cameraMode"]:checked').value;
             const roomCode = 'ZEN-' + Math.random().toString(36).substr(2, 4).toUpperCase();
 
             const params = new URLSearchParams({
@@ -285,7 +303,8 @@
                 goal: goal,
                 type: currentRoomType,
                 duration: duration,
-                room: roomCode
+                room: roomCode,
+                cam: cameraMode
             });
             window.location.href = 'session.html?' + params.toString();
         }
