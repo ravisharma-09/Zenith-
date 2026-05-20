@@ -17,8 +17,8 @@
     <!-- Camera Denied Overlay -->
     <div class="cam-denied-overlay" id="camDeniedOverlay" style="display:none;">
         <div class="cam-denied-icon">🚫</div>
-        <h2>Camera Required</h2>
-        <p>You're not a perfect fit for this room.<br>This session requires Focus Cam to keep everyone accountable. Please allow camera access and try again.</p>
+        <h2 id="camDeniedTitle">Not Connected</h2>
+        <p id="camDeniedMsg">Camera access is required for this room.</p>
         <button class="cam-denied-btn" onclick="window.location.href='rooms.html'">← Choose a Different Room</button>
     </div>
 
@@ -791,12 +791,22 @@
 
         // ===== CAMERA AUTO-REQUEST =====
         async function initCamera() {
-            if (!cameraRequired) return;
+            if (!cameraRequired) {
+                // Non-camera mode — hide the entire video section
+                document.getElementById('videoSection').style.display = 'none';
+                return;
+            }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 applyStream(stream);
                 announceCamera();
             } catch(err) {
+                // Customise denial message by room type
+                const roomLabel = sessionTypeText === 'Meditation' ? 'Meditation' : 'Study';
+                document.getElementById('camDeniedTitle').textContent = 'You\'re not fit for this ' + roomLabel + ' Room';
+                document.getElementById('camDeniedMsg').textContent =
+                    'This ' + roomLabel + ' room requires Focus Cam to keep all participants accountable. '
+                    + 'Please allow camera access and try again, or choose a No-Camera room.';
                 document.getElementById('camDeniedOverlay').style.display = 'flex';
             }
         }
