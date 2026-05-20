@@ -14,6 +14,14 @@
     <div class="session-bg"></div>
     <div class="session-bg-overlay"></div>
 
+    <!-- Camera Denied Overlay -->
+    <div class="cam-denied-overlay" id="camDeniedOverlay" style="display:none;">
+        <div class="cam-denied-icon">🚫</div>
+        <h2>Camera Required</h2>
+        <p>You're not a perfect fit for this room.<br>This session requires Focus Cam to keep everyone accountable. Please allow camera access and try again.</p>
+        <button class="cam-denied-btn" onclick="window.location.href='rooms.html'">← Choose a Different Room</button>
+    </div>
+
     <!-- Tab Switch Warning Overlay -->
     <div class="tab-warning-overlay" id="tabWarning">
         <div class="tab-warning-content">
@@ -153,6 +161,7 @@
         const sessionGoalText = urlParams.get('goal') || 'Deep Focus Session';
         const sessionTypeText = urlParams.get('type') || 'Study';
         const duration = parseInt(urlParams.get('duration')) || 60;
+        const cameraRequired = urlParams.get('cam') === 'on';
 
         document.getElementById('sessionName').textContent = myName;
         document.getElementById('sessionGoal').textContent = sessionGoalText;
@@ -329,8 +338,8 @@
             if (!data || data.sender === myId || data.room !== roomCode) return;
 
             if (data.type === 'join') {
-                // New peer announced camera — initiate WebRTC connection
-                if (isVideoOn && !peers[data.sender]) {
+                // Peer announced camera on — connect so we receive their stream
+                if (!peers[data.sender]) {
                     initiateConnection(data.sender);
                 }
             } else if (data.type === 'offer') {
@@ -352,34 +361,34 @@
         }
 
         async function initiateConnection(peerId) {
-            const pc = createPeerConnection(peerId);
-            peers[peerId] = pc;
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
-            sendSignal({
-                type: 'offer',
-                target: peerId,
-                sender: myId,
-                offer: offer
-            });
+            try {
+                const pc = createPeerConnection(peerId);
+                peers[peerId] = pc;
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                sendSignal({ type: 'offer', target: peerId, sender: myId, offer: offer });
+            } catch(err) {
+                console.warn('initiateConnection failed for', peerId, err);
+                delete peers[peerId];
+            }
         }
 
         async function handleOffer(peerId, offer) {
-            const pc = createPeerConnection(peerId);
-            peers[peerId] = pc;
-
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            sendSignal({
-                type: 'answer',
-                target: peerId,
-                sender: myId,
-                answer: answer
-            });
+            try {
+                // If glare: close the conflicting connection and accept incoming offer
+                if (peers[peerId]) {
+                    peers[peerId].close();
+                    delete peers[peerId];
+                }
+                const pc = createPeerConnection(peerId);
+                peers[peerId] = pc;
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                sendSignal({ type: 'answer', target: peerId, sender: myId, answer: answer });
+            } catch(err) {
+                console.warn('handleOffer failed for', peerId, err);
+            }
         }
 
         async function handleAnswer(peerId, answer) {
@@ -419,13 +428,16 @@
                     btn.classList.add('active');
                     isVideoOn = true;
 
-                    // Notify room and initiate WebRTC with every participant (camera or not)
+                    // Announce camera on — receivers will initiate connection to us
                     sendSignal({ type: 'join', sender: myId, name: myName });
-                    participants.forEach(function(p) {
-                        if (p.id !== myId && !peers[p.id]) {
-                            initiateConnection(p.id);
-                        }
-                    });
+                    // Fallback: initiate to anyone who didn't receive the signal
+                    setTimeout(function() {
+                        participants.forEach(function(p) {
+                            if (p.id !== myId && !peers[p.id]) {
+                                initiateConnection(p.id);
+                            }
+                        });
+                    }, 2000);
 
                 } catch (err) {
                     alert('Could not access camera. Please allow camera permissions.');
@@ -650,6 +662,7 @@
 
             if (remainingSeconds <= 0) {
                 clearInterval(timerInterval);
+                if (timerKey) localStorage.removeItem(timerKey);
                 document.getElementById('timerMain').textContent = 'Done!';
                 document.getElementById('timerMain').style.fontSize = '1.6rem';
                 document.getElementById('sessionStatus').textContent = 'Session Complete';
@@ -729,6 +742,7 @@
             });
             clearInterval(timerInterval);
             clearInterval(syncInterval);
+            if (timerKey) localStorage.removeItem(timerKey);
             saveSessionStats();
             window.location.href = 'rooms.html';
         }
@@ -743,14 +757,76 @@
             if (e.target === this) closeLeaveModal();
         });
 
+        // ===== TIMER PERSISTENCE =====
+        const timerKey = roomCode ? 'zenith_timer_' + roomCode : null;
+
+        function saveTimerState() {
+            if (!timerKey) return;
+            localStorage.setItem(timerKey, JSON.stringify({
+                remainingSeconds: remainingSeconds,
+                elapsedMs: elapsedMs,
+                totalSeconds: totalSeconds,
+                savedAt: Date.now()
+            }));
+        }
+
+        function restoreTimerState() {
+            if (!timerKey) return;
+            try {
+                const saved = JSON.parse(localStorage.getItem(timerKey) || 'null');
+                if (!saved) return;
+                const ageMs = Date.now() - saved.savedAt;
+                if (ageMs > saved.totalSeconds * 1000) {
+                    localStorage.removeItem(timerKey);
+                    return;
+                }
+                // Advance remaining by time passed while away (not paused)
+                const awaySeconds = Math.floor(ageMs / 1000);
+                remainingSeconds = Math.max(0, saved.remainingSeconds - awaySeconds);
+                elapsedMs = saved.elapsedMs + ageMs;
+                totalSeconds = saved.totalSeconds;
+            } catch(e) {}
+        }
+
+        // ===== CAMERA AUTO-REQUEST =====
+        async function initCamera() {
+            if (!cameraRequired) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                // Permission granted — hand the stream to toggleVideo logic
+                const video = document.getElementById('selfVideo');
+                const placeholder = document.getElementById('selfPlaceholder');
+                videoStream = stream;
+                video.srcObject = stream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                document.getElementById('selfVideoStatus').textContent = 'Live';
+                document.getElementById('selfVideoStatus').style.color = '#8ab8a0';
+                document.getElementById('videoToggleText').textContent = 'Turn Off Camera';
+                document.getElementById('videoToggle').classList.add('active');
+                isVideoOn = true;
+                sendSignal({ type: 'join', sender: myId, name: myName });
+                setTimeout(function() {
+                    participants.forEach(function(p) {
+                        if (p.id !== myId && !peers[p.id]) initiateConnection(p.id);
+                    });
+                }, 2000);
+            } catch(err) {
+                document.getElementById('camDeniedOverlay').style.display = 'flex';
+            }
+        }
+
         // ===== INIT =====
         const circumference = 2 * Math.PI * 54;
         document.getElementById('timerProgress').style.strokeDasharray = circumference;
         document.getElementById('timerProgress').style.strokeDashoffset = 0;
 
+        restoreTimerState();
         initRoom();
+        initCamera();
         lastTick = Date.now();
         timerInterval = setInterval(updateTimer, 1000);
+        setInterval(saveTimerState, 5000);
     </script>
 
 </body>

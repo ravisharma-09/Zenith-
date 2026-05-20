@@ -1277,6 +1277,146 @@ body {
     text-decoration: underline;
 }
 
+/* Camera Mode Options */
+.camera-mode-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.cam-option {
+    cursor: pointer;
+    position: relative;
+}
+
+.cam-option input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.cam-option span.cam-icon,
+.cam-option span.cam-label,
+.cam-option span.cam-desc {
+    display: block;
+}
+
+.cam-option-on,
+.cam-option-off {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 16px 10px;
+    background: var(--bg-warm);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.cam-option .cam-icon {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+
+.cam-option .cam-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+.cam-option .cam-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.cam-option-on input:checked ~ *,
+.cam-option-off input:checked ~ * {
+    /* handled via parent selector below */
+}
+
+.cam-option-on:has(input:checked) {
+    background: rgba(124, 154, 142, 0.08);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(124, 154, 142, 0.06);
+}
+
+.cam-option-on:has(input:checked) .cam-label {
+    color: var(--primary-light);
+}
+
+.cam-option-off:has(input:checked) {
+    background: rgba(201, 139, 123, 0.06);
+    border-color: rgba(201, 139, 123, 0.4);
+}
+
+.cam-option-off:has(input:checked) .cam-label {
+    color: #c98b7b;
+}
+
+.cam-option:hover span.cam-label {
+    color: var(--text-primary);
+}
+
+/* Camera Denied Overlay */
+.cam-denied-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 20, 25, 0.97);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+    padding: 40px;
+}
+
+.cam-denied-icon {
+    font-size: 5rem;
+    animation: gentlePulse 2s ease-in-out infinite;
+}
+
+.cam-denied-overlay h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #c98b7b;
+    letter-spacing: 2px;
+}
+
+.cam-denied-overlay p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+.cam-denied-btn {
+    margin-top: 8px;
+    padding: 14px 36px;
+    background: transparent;
+    color: var(--primary-light);
+    border: 1.5px solid var(--primary);
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cam-denied-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
 /* Duration Options */
 .duration-options {
     display: grid;
