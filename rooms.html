@@ -387,6 +387,19 @@
             container.innerHTML = html;
         }
 
+        // ===== CAMERA MODE SELECTION UI =====
+        function updateCamSelection() {
+            document.querySelectorAll('.cam-option').forEach(function(opt) {
+                opt.classList.remove('selected');
+            });
+            const checked = document.querySelector('input[name="cameraMode"]:checked');
+            if (checked) checked.closest('.cam-option').classList.add('selected');
+        }
+        document.querySelectorAll('input[name="cameraMode"]').forEach(function(radio) {
+            radio.addEventListener('change', updateCamSelection);
+        });
+        updateCamSelection();
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal-overlay.active').forEach(m => {

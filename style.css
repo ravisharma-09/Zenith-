@@ -1339,22 +1339,22 @@ body {
     /* handled via parent selector below */
 }
 
-.cam-option-on:has(input:checked) {
+.cam-option-on.selected {
     background: rgba(124, 154, 142, 0.08);
     border-color: var(--primary);
     box-shadow: 0 0 10px rgba(124, 154, 142, 0.06);
 }
 
-.cam-option-on:has(input:checked) .cam-label {
+.cam-option-on.selected .cam-label {
     color: var(--primary-light);
 }
 
-.cam-option-off:has(input:checked) {
+.cam-option-off.selected {
     background: rgba(201, 139, 123, 0.06);
     border-color: rgba(201, 139, 123, 0.4);
 }
 
-.cam-option-off:has(input:checked) .cam-label {
+.cam-option-off.selected .cam-label {
     color: #c98b7b;
 }
 

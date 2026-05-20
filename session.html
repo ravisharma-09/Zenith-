@@ -205,6 +205,7 @@
         let participants = [];
         let myId = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         let supabaseChannel = null;
+        let channelReady = false;
         let syncInterval = null;
 
         // ===== TAB VISIBILITY PAUSE =====
@@ -413,32 +414,16 @@
             const btn = document.getElementById('videoToggle');
             const btnText = document.getElementById('videoToggleText');
 
+            if (isVideoOn && cameraRequired) return; // camera is mandatory — block turning off
+
             if (!isVideoOn) {
                 try {
-                    videoStream = await navigator.mediaDevices.getUserMedia({
+                    const stream = await navigator.mediaDevices.getUserMedia({
                         video: { width: 640, height: 480, facingMode: 'user' },
                         audio: false
                     });
-                    video.srcObject = videoStream;
-                    video.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    status.textContent = 'Live';
-                    status.style.color = '#8ab8a0';
-                    btnText.textContent = 'Turn Off Camera';
-                    btn.classList.add('active');
-                    isVideoOn = true;
-
-                    // Announce camera on — receivers will initiate connection to us
-                    sendSignal({ type: 'join', sender: myId, name: myName });
-                    // Fallback: initiate to anyone who didn't receive the signal
-                    setTimeout(function() {
-                        participants.forEach(function(p) {
-                            if (p.id !== myId && !peers[p.id]) {
-                                initiateConnection(p.id);
-                            }
-                        });
-                    }, 2000);
-
+                    applyStream(stream);
+                    announceCamera();
                 } catch (err) {
                     alert('Could not access camera. Please allow camera permissions.');
                     console.error('Camera error:', err);
@@ -500,12 +485,14 @@
                     })
                     .subscribe(function(status) {
                         if (status === 'SUBSCRIBED') {
-                            // Announce presence to everyone already in the room
+                            channelReady = true;
                             supabaseChannel.send({
                                 type: 'broadcast',
                                 event: 'heartbeat',
                                 payload: { type: 'join', id: myId, name: myName, timestamp: Date.now() }
                             });
+                            // Camera may already be on if initCamera() resolved before this
+                            announceCamera();
                         }
                     });
 
@@ -522,6 +509,7 @@
             }
 
             renderParticipants();
+            if (!roomCode) channelReady = true; // solo session — no channel needed
         }
 
         function handleSyncData(data) {
@@ -788,31 +776,48 @@
             } catch(e) {}
         }
 
+        // ===== CAMERA SIGNAL =====
+        // Guards against race: camera may be ready before channel subscribes, or vice versa.
+        // Called from both initCamera() and the SUBSCRIBED callback — only fires when both are ready.
+        function announceCamera() {
+            if (!isVideoOn || !channelReady) return;
+            sendSignal({ type: 'join', sender: myId, name: myName });
+            setTimeout(function() {
+                participants.forEach(function(p) {
+                    if (p.id !== myId && !peers[p.id]) initiateConnection(p.id);
+                });
+            }, 1500);
+        }
+
         // ===== CAMERA AUTO-REQUEST =====
         async function initCamera() {
             if (!cameraRequired) return;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                // Permission granted — hand the stream to toggleVideo logic
-                const video = document.getElementById('selfVideo');
-                const placeholder = document.getElementById('selfPlaceholder');
-                videoStream = stream;
-                video.srcObject = stream;
-                video.style.display = 'block';
-                placeholder.style.display = 'none';
-                document.getElementById('selfVideoStatus').textContent = 'Live';
-                document.getElementById('selfVideoStatus').style.color = '#8ab8a0';
-                document.getElementById('videoToggleText').textContent = 'Turn Off Camera';
-                document.getElementById('videoToggle').classList.add('active');
-                isVideoOn = true;
-                sendSignal({ type: 'join', sender: myId, name: myName });
-                setTimeout(function() {
-                    participants.forEach(function(p) {
-                        if (p.id !== myId && !peers[p.id]) initiateConnection(p.id);
-                    });
-                }, 2000);
+                applyStream(stream);
+                announceCamera();
             } catch(err) {
                 document.getElementById('camDeniedOverlay').style.display = 'flex';
+            }
+        }
+
+        function applyStream(stream) {
+            const video = document.getElementById('selfVideo');
+            videoStream = stream;
+            video.srcObject = stream;
+            video.style.display = 'block';
+            document.getElementById('selfPlaceholder').style.display = 'none';
+            document.getElementById('selfVideoStatus').textContent = 'Live';
+            document.getElementById('selfVideoStatus').style.color = '#8ab8a0';
+            isVideoOn = true;
+
+            const btn = document.getElementById('videoToggle');
+            if (cameraRequired) {
+                // Camera is mandatory — hide the toggle so it can't be turned off
+                btn.style.display = 'none';
+            } else {
+                document.getElementById('videoToggleText').textContent = 'Turn Off Camera';
+                btn.classList.add('active');
             }
         }
 
