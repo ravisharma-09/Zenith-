@@ -419,12 +419,12 @@
                     btn.classList.add('active');
                     isVideoOn = true;
 
-                    // Notify all existing peers and initiate connections
+                    // Notify room and initiate WebRTC with every participant (camera or not)
                     sendSignal({ type: 'join', sender: myId, name: myName });
-                    Object.keys(peers).forEach(function(peerId) {
-                        videoStream.getTracks().forEach(function(track) {
-                            peers[peerId].addTrack(track, videoStream);
-                        });
+                    participants.forEach(function(p) {
+                        if (p.id !== myId && !peers[p.id]) {
+                            initiateConnection(p.id);
+                        }
                     });
 
                 } catch (err) {
@@ -506,7 +506,6 @@
                         });
                     }
                     cleanupOldParticipants();
-                    renderParticipants();
                 }, 2000);
             }
 
@@ -520,7 +519,6 @@
             if (existing) {
                 existing.lastSeen = Date.now();
                 if (data.name) existing.name = data.name;
-                renderParticipants();
             } else {
                 participants.push({
                     id: data.id,
